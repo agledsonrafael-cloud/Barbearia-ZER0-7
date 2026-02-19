@@ -15,22 +15,41 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyB
   const [loading, setLoading] = useState(true);
   const [nextSlot, setNextSlot] = useState<string | null>(null);
 
+  // MOCK DATA FOR FALLBACK
+  const MOCK_SERVICES: Service[] = [
+    { id: '1', name: 'Corte de Cabelo', duration: 30, price: 35, description: 'Corte tradicional ou moderno, com acabamento na navalha.' },
+    { id: '2', name: 'Barba', duration: 30, price: 25, description: 'Barba modelada com toalha quente e massagem facial.' },
+    { id: '3', name: 'Combo (Corte + Barba)', duration: 50, price: 55, description: 'O serviço completo para o homem moderno.' },
+    { id: '4', name: 'Pezinho', duration: 15, price: 10, description: 'Acabamento nas laterais e nuca.' },
+  ];
+
   useEffect(() => {
     const fetchServices = async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('name');
+      // 1. Try to fetch from Supabase
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .order('name');
 
-      if (error) {
-        console.error('Error fetching services:', error);
-      } else {
-        setServices(data || []);
+        if (error) {
+          console.warn('Supabase fetch failed, falling back to mock data:', error);
+          setServices(MOCK_SERVICES);
+        } else if (!data || data.length === 0) {
+          // If DB is empty, also use mock data so the site isn't empty
+          console.warn('No services found in DB, using mock data.');
+          setServices(MOCK_SERVICES);
+        } else {
+          setServices(data);
+        }
+      } catch (err) {
+        console.error('Critical fetch error:', err);
+        setServices(MOCK_SERVICES); // Absolute fallback
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchServices();
     fetchServices();
   }, []);
 
