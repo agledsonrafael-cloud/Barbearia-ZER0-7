@@ -4,10 +4,15 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials not found in environment variables.');
+  console.error('CRITICAL: Supabase credentials missing!');
+  // If in production/Vercel (implied by import.meta.env.PROD or similar, but let's just err safe),
+  // we want to NOT maintain a broken state.
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+const safeUrl = supabaseUrl || 'https://placeholder.supabase.co';
+const safeKey = supabaseAnonKey || 'placeholder';
+
+export const supabase = createClient(safeUrl, safeKey);
 
 export const autoUpdateAppointments = async () => {
   // Logic to fetch and update past appointments
