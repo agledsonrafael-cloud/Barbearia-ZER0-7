@@ -1,17 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { IMAGES } from '../constants';
+import { IMAGES, BUSINESS_CONFIG } from '../constants';
 import { supabase } from '../lib/supabase';
 import { Service } from '../types';
 
 interface HomeViewProps {
   onStartBooking: () => void;
   onAdminLogin: () => void;
+  onMyBookings: () => void;
 }
 
-const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin }) => {
+const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyBookings }) => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nextSlot, setNextSlot] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -29,7 +31,10 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin }) => 
     };
 
     fetchServices();
+    fetchServices();
   }, []);
+
+
 
   return (
     <div className="rustic-texture min-h-screen">
@@ -41,6 +46,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin }) => 
           </div>
           <nav className="hidden md:flex md:flex-row md:flex-nowrap items-center gap-6 lg:gap-8 text-sm font-semibold text-stone-600 dark:text-stone-400 flex-shrink-0">
             <a className="hover:text-primary transition-colors whitespace-nowrap" href="#services">Serviços</a>
+            <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onMyBookings}>Meus Agendamentos</button>
             <button className="hover:text-primary transition-colors font-bold whitespace-nowrap" onClick={onAdminLogin}>Acesso Barbeiro</button>
           </nav>
           <button
@@ -57,10 +63,16 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin }) => 
       <section className="relative py-12 sm:py-20 lg:py-32 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 sm:gap-12 items-center">
           <div className="z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest mb-6 border border-primary/20">
               <span className="material-icons text-xs">workspace_premium</span>
               Excelência desde 2019
             </div>
+            {nextSlot && (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-green/10 text-accent-green text-xs font-bold uppercase tracking-widest mb-6 ml-4 border border-accent-green/20 animate-pulse">
+                <span className="material-icons text-xs">schedule</span>
+                Próximo Horário: {nextSlot}
+              </div>
+            )}
             <h1 className="text-3xl sm:text-5xl lg:text-7xl font-extrabold text-stone-900 dark:text-white leading-tight mb-4 sm:mb-6">
               O melhor corte e barba no coração do <span className="text-primary italic">Ceará</span>
             </h1>
@@ -165,6 +177,9 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin }) => 
         </div>
       </section>
 
+
+
+
       {/* Footer */}
       <footer className="bg-stone-900 text-stone-400 py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -203,7 +218,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin }) => 
           </div>
         </div>
       </footer>
-    </div>
+    </div >
   );
 };
 

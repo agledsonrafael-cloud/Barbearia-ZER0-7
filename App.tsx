@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { ViewType } from './types';
 import HomeView from './components/HomeView';
 import BookingView from './components/BookingView';
+import MyBookingsView from './components/MyBookingsView';
 import LoginView from './components/LoginView';
 import DashboardView from './components/DashboardView';
 import ConfirmationView from './components/ConfirmationView';
@@ -56,9 +57,17 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (currentView) {
       case ViewType.HOME:
-        return <HomeView onStartBooking={() => navigateTo(ViewType.BOOKING)} onAdminLogin={() => navigateTo(ViewType.LOGIN)} />;
+        return (
+          <HomeView
+            onStartBooking={() => navigateTo(ViewType.BOOKING)}
+            onAdminLogin={() => navigateTo(ViewType.LOGIN)}
+            onMyBookings={() => navigateTo(ViewType.MY_BOOKINGS)}
+          />
+        );
       case ViewType.BOOKING:
         return <BookingView onComplete={(data) => navigateTo(ViewType.CONFIRMATION, data)} onBack={() => navigateTo(ViewType.HOME)} />;
+      case ViewType.MY_BOOKINGS:
+        return <MyBookingsView onBack={() => navigateTo(ViewType.HOME)} />;
       case ViewType.CONFIRMATION:
         return <ConfirmationView data={selectedBookingData} onGoHome={() => navigateTo(ViewType.HOME)} />;
       case ViewType.LOGIN:
@@ -67,7 +76,7 @@ const App: React.FC = () => {
         if (!session) return <LoginView onSuccess={() => navigateTo(ViewType.DASHBOARD)} onBack={() => navigateTo(ViewType.HOME)} />;
         return <DashboardView onLogout={handleLogout} />;
       default:
-        return <HomeView onStartBooking={() => navigateTo(ViewType.BOOKING)} onAdminLogin={() => navigateTo(ViewType.LOGIN)} />;
+        return <HomeView onStartBooking={() => navigateTo(ViewType.BOOKING)} onAdminLogin={() => navigateTo(ViewType.LOGIN)} onMyBookings={() => navigateTo(ViewType.MY_BOOKINGS)} />;
     }
   };
 

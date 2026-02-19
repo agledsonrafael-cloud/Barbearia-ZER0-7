@@ -35,6 +35,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
   const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [newBlockData, setNewBlockData] = useState({ start_date: '', end_date: '', reason: '' });
+  const [showWalkInModal, setShowWalkInModal] = useState(false);
+  const [walkInData, setWalkInData] = useState({
+    client_name: 'Cliente Avulso',
+    service_id: '',
+    time: '',
+    date: ''
+  });
 
   const getLocalTodayStr = () => {
     const d = new Date();
@@ -410,6 +417,59 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
     }
   };
 
+  const handleSaveWalkIn = async () => {
+    if (!walkInData.service_id || !walkInData.time || !walkInData.date) {
+      alert('Preencha os dados obrigatórios (Serviço, Data e Hora)!');
+      return;
+    }
+
+    try {
+      const selectedService = services.find(s => s.id === walkInData.service_id);
+      if (!selectedService) return;
+
+      // Check for conflicts
+      const { data: conflict } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('date', walkInData.date)
+        .eq('time', walkInData.time)
+        .neq('status', 'cancelled');
+
+      if (conflict && conflict.length > 0) {
+        const confirmForce = confirm(`⚠️ ATENÇÃO: Já existe um agendamento para ${walkInData.time}!\n\nCliente: ${conflict[0].client_name}\nServiço: ${conflict[0].service_name}\n\nDeseja forçar o encaixe (Sobrepor horários)?`);
+        if (!confirmForce) return;
+      }
+
+      const { error } = await supabase
+        .from('appointments')
+        .insert([{
+          client_name: walkInData.client_name || 'Cliente Avulso',
+          client_phone: '00000000000',
+          service_id: walkInData.service_id,
+          service_name: selectedService.name,
+          price: selectedService.price,
+          date: walkInData.date,
+          time: walkInData.time,
+          status: 'confirmed',
+          payment_status: 'pending'
+        }]);
+
+      if (error) throw error;
+
+      setShowWalkInModal(false);
+      fetchData();
+      setWalkInData({
+        client_name: 'Cliente Avulso',
+        service_id: '',
+        time: '',
+        date: getLocalTodayStr()
+      });
+      alert('Entrada Rápida confirmada com sucesso!');
+    } catch (err: any) {
+      alert('Erro: ' + err.message);
+    }
+  };
+
   const sidebarContent = () => (
     <>
       <button
@@ -574,6 +634,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
                 <span className="text-white font-bold text-sm">Ações do Admin:</span>
               </div>
               <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setWalkInData({ ...walkInData, date: getLocalTodayStr() });
+                    setShowWalkInModal(true);
+                  }}
+                  className="bg-accent-green hover:bg-accent-green/90 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all uppercase tracking-widest shadow-lg shadow-accent-green/20"
+                >
+                  <span className="material-icons text-sm">flash_on</span> Entrada Rápida
+                </button>
                 <button
                   onClick={() => setSection(DashboardSection.AGENDA)}
                   className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all"
@@ -784,6 +853,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
                 <h3 className="text-2xl font-black text-stone-900 dark:text-white uppercase tracking-tighter">Agenda do Mês</h3>
                 <p className="text-stone-500 text-sm mt-1">Visualize seus compromissos e planeje seu dia.</p>
               </div>
+              <button
+                onClick={() => {
+                  setWalkInData({ ...walkInData, date: getLocalTodayStr() });
+                  setShowWalkInModal(true);
+                }}
+                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all uppercase tracking-widest mr-2 shadow-lg shadow-primary/20"
+              >
+                <span className="material-icons text-sm">flash_on</span> Entrada Rápida
+              </button>
               <button
                 onClick={() => setShowBlockModal(true)}
                 className="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all uppercase tracking-widest mr-2"
@@ -1707,6 +1785,88 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
           </div>
         </div>
       )}
+      {/* Walk-In Modal */}
+      {showWalkInModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-stone-900 w-full max-w-md rounded-3xl p-8 shadow-2xl border border-white/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+
+            <h3 className="text-xl font-black text-stone-900 dark:text-white uppercase tracking-tighter mb-6 flex items-center gap-3 relative z-10">
+              <span className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                <span className="material-icons">flash_on</span>
+              </span>
+              Entrada Rápida
+            </h3>
+
+            <div className="space-y-4 relative z-10">
+              <div>
+                <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1 mb-1">Cliente (Opcional)</label>
+                <input
+                  type="text"
+                  value={walkInData.client_name}
+                  onChange={e => setWalkInData({ ...walkInData, client_name: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 dark:bg-stone-800 border-none rounded-xl font-bold dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  placeholder="Nome do Cliente ou 'Cliente Avulso'"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1 mb-1">Data</label>
+                  <input
+                    type="date"
+                    value={walkInData.date}
+                    onChange={e => setWalkInData({ ...walkInData, date: e.target.value })}
+                    className="w-full px-4 py-3 bg-stone-50 dark:bg-stone-800 border-none rounded-xl font-bold dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1 mb-1">Hora</label>
+                  <input
+                    type="time"
+                    value={walkInData.time}
+                    onChange={e => setWalkInData({ ...walkInData, time: e.target.value })}
+                    className="w-full px-4 py-3 bg-stone-50 dark:bg-stone-800 border-none rounded-xl font-bold dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1 mb-1">Serviço</label>
+                <div className="relative">
+                  <select
+                    value={walkInData.service_id}
+                    onChange={e => setWalkInData({ ...walkInData, service_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-stone-50 dark:bg-stone-800 border-none rounded-xl font-bold dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="">Selecione um serviço...</option>
+                    {services.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} - R$ {Number(s.price).toFixed(2)}</option>
+                    ))}
+                  </select>
+                  <span className="material-icons absolute right-4 top-3.5 text-stone-400 pointer-events-none">expand_more</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-6">
+                <button
+                  onClick={() => setShowWalkInModal(false)}
+                  className="flex-1 py-4 bg-stone-100 dark:bg-white/5 text-stone-500 font-black rounded-xl hover:bg-stone-200 dark:hover:bg-white/10 transition-colors uppercase text-[10px] tracking-widest"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveWalkIn}
+                  className="flex-1 py-4 bg-primary text-white font-black rounded-xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                >
+                  <span className="material-icons text-sm">check</span> Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Block Modal */}
       {showBlockModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-950/80 backdrop-blur-sm animate-fade-in">
