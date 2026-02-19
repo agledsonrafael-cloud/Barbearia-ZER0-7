@@ -29,17 +29,23 @@ const MyBookingsView: React.FC<MyBookingsViewProps> = ({ onBack }) => {
 
         setLoading(true);
         try {
+            // Use secure RPC
             const { data, error } = await supabase
-                .from('appointments')
-                .select('*')
-                .eq('client_phone', cleanPhone)
-                .in('status', ['confirmed', 'pending']) // Only show active appointments
-                .gte('date', new Date().toISOString().split('T')[0]) // Only future or today's appointments
-                .order('date', { ascending: true })
-                .order('time', { ascending: true });
+                .rpc('get_client_appointments', { phone_number: cleanPhone });
 
             if (error) throw error;
-            setAppointments(data || []);
+
+            // Filter locally or update RPC if strict filtering (future/active) is needed
+            // For now, filtering in memory to match previous logic or if RPC returns all
+            // The RPC returns all, so let's filter:
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+
+            const validAppointments = (data || []).filter((app: Appointment) =>
+                ['confirmed', 'pending'].includes(app.status) && app.date >= todayStr
+            );
+
+            setAppointments(validAppointments);
             setSearched(true);
         } catch (err: any) {
             alert('Erro ao buscar agendamentos: ' + err.message);
@@ -80,10 +86,12 @@ const MyBookingsView: React.FC<MyBookingsViewProps> = ({ onBack }) => {
         <div className="min-h-screen bg-stone-900 text-white p-4">
             {/* Header */}
             <header className="flex items-center justify-between mb-8 max-w-md mx-auto">
-                <button onClick={onBack} className="text-stone-400 hover:text-white flex items-center gap-2">
+                <button onClick={onBack} className="text-white hover:text-primary transition-colors flex items-center gap-2 font-medium">
                     <span className="material-icons">arrow_back</span> Voltar
                 </button>
-                <h1 className="text-xl font-black uppercase tracking-widest text-primary">Meus Agendamentos</h1>
+                <h1 className="text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-400">
+                    Meus Agendamentos
+                </h1>
             </header>
 
             <main className="max-w-md mx-auto space-y-6">
@@ -91,21 +99,24 @@ const MyBookingsView: React.FC<MyBookingsViewProps> = ({ onBack }) => {
                 <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
                     <p className="text-stone-400 text-sm mb-4">Digite seu número de telefone para encontrar seus horários agendados.</p>
                     <form onSubmit={handleSearch} className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-primary mb-1">Seu Telefone</label>
-                            <input
-                                type="tel"
-                                value={phone}
-                                onChange={(e) => setPhone(formatPhone(e.target.value))}
-                                placeholder="(00) 00000-0000"
-                                className="w-full bg-stone-800 border border-white/10 rounded-xl p-3 text-white focus:border-primary outline-none transition-colors"
-                                autoFocus
-                            />
+                        <div className="relative">
+                            <label className="block text-xs font-bold uppercase text-primary mb-1 tracking-wider">Seu Telefone</label>
+                            <div className="relative">
+                                <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-primary text-lg">smartphone</span>
+                                <input
+                                    type="tel"
+                                    value={phone}
+                                    onChange={(e) => setPhone(formatPhone(e.target.value))}
+                                    placeholder="(00) 00000-0000"
+                                    className="w-full bg-stone-800/50 border border-stone-700 rounded-xl pl-10 pr-4 py-3.5 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-stone-600 font-medium"
+                                    autoFocus
+                                />
+                            </div>
                         </div>
                         <button
                             type="submit"
                             disabled={loading || phone.length < 10}
-                            className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full bg-gradient-to-r from-primary to-orange-700 text-white font-bold py-4 rounded-xl hover:shadow-lg hover:shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 uppercase tracking-wide text-sm"
                         >
                             {loading ? (
                                 <span className="material-icons animate-spin">sync</span>

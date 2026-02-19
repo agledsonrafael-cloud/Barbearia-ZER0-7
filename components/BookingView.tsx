@@ -24,6 +24,21 @@ const BookingView: React.FC<BookingViewProps> = ({ onComplete, onBack }) => {
   const [isNewCustomer, setIsNewCustomer] = useState(true);
   const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
 
+  useEffect(() => {
+    fetchBlockedPeriods();
+  }, []);
+
+  const fetchBlockedPeriods = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blocked_periods')
+        .select('*');
+      if (data) setBlockedPeriods(data);
+    } catch (e) {
+      console.error('Error fetching blocked periods', e);
+    }
+  };
+
   // Helper: get month/year info
   const getMonthName = (date: Date) => {
     const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -167,15 +182,14 @@ const BookingView: React.FC<BookingViewProps> = ({ onComplete, onBack }) => {
       setFetchingSlots(true);
       const dateStr = buildDateStr(selectedDay);
       const { data, error } = await supabase
-        .from('appointments')
-        .select('time')
-        .eq('date', dateStr)
-        .neq('status', 'cancelled'); // Ignora cancelados!
+        .rpc('get_busy_slots', { query_date: dateStr });
 
       if (error) {
         console.error('Error fetching booked times:', error);
       } else {
-        setBookedTimes(data?.map(app => app.time) || []);
+        // The RPC returns { slot_time: "HH:mm" } objects
+        // Our RPC returns TABLE(slot_time text), so data is [{ slot_time: "10:00" }, ...]
+        setBookedTimes(data?.map((item: any) => item.slot_time) || []);
       }
       setFetchingSlots(false);
     };
@@ -188,16 +202,17 @@ const BookingView: React.FC<BookingViewProps> = ({ onComplete, onBack }) => {
     const fetchLoyaltyData = async () => {
       const cleanPhone = formData.phone.replace(/\D/g, '');
       if (cleanPhone.length >= 10) {
-        const { data } = await supabase
-          .from('customers')
-          .select('visits_count, name')
-          .eq('phone', cleanPhone)
-          .single();
+        const { data, error } = await supabase
+          .rpc('get_customer_loyalty', { phone_number: cleanPhone })
+          .maybeSingle();
 
         if (data) {
-          setCustomerData(data);
+          const customerData = data as any; // Cast to any to avoid unknown type error
+          setCustomerData(customerData);
           setIsNewCustomer(false);
-          if (!formData.name) setFormData(prev => ({ ...prev, name: data.name }));
+          if (!formData.name && customerData.name) {
+            setFormData(prev => ({ ...prev, name: customerData.name }));
+          }
         } else {
           setCustomerData(null);
           setIsNewCustomer(true);
