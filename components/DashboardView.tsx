@@ -2,8 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardSection, Service, Appointment, AppNotification, BlockedPeriod } from '../types';
 import { IMAGES, BUSINESS_CONFIG } from '../constants';
-import { supabase } from '../lib/supabase';
+import { supabase, autoUpdateAppointments } from '../lib/supabase';
 import AnalyticsOverview from './AnalyticsOverview';
+import { Sidebar } from './dashboard/Sidebar';
+import { StatsOverview } from './dashboard/StatsOverview';
+import { ServiceManager } from './dashboard/ServiceManager';
 
 interface DashboardViewProps {
   onLogout: () => void;
@@ -79,10 +82,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
       }
     };
     checkUserStatus();
+    autoUpdateAppointments();
     fetchData();
     fetchGoal();
-    fetchData();
-    fetchGoal();
+
     fetchNotifications();
     fetchBlockedPeriods();
 
@@ -470,93 +473,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
     }
   };
 
-  const sidebarContent = () => (
-    <>
-      <button
-        className="lg:hidden absolute top-4 right-4 z-50 text-white bg-primary p-2 rounded-lg"
-        onClick={() => setShowMobileMenu(false)}
-      >
-        <span className="material-icons">close</span>
-      </button>
-
-      <div className="p-10 flex flex-col items-center border-b border-white/5 relative bg-gradient-to-b from-stone-900 to-stone-950">
-        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-2xl shadow-primary/20 transform rotate-3 hover:rotate-0 transition-transform duration-500">
-          <span className="material-icons text-white text-3xl">content_cut</span>
-        </div>
-        <h1 className="text-2xl font-black tracking-tighter mb-1">ZERO 7</h1>
-        <p className="text-[10px] uppercase tracking-[0.5em] text-stone-500 font-bold">Admin Console</p>
-      </div>
-
-      <nav className="flex-1 p-6 space-y-3 overflow-y-auto">
-        {[
-          { icon: 'dashboard', label: 'Dashboard', section: DashboardSection.OVERVIEW },
-          { icon: 'bar_chart', label: 'Analytics', section: DashboardSection.ANALYTICS },
-          { icon: 'calendar_month', label: 'Agenda', section: DashboardSection.AGENDA },
-          { icon: 'inventory_2', label: 'Serviços', section: DashboardSection.SERVICES },
-          { icon: 'groups', label: 'Clientes', section: DashboardSection.CLIENTS },
-          { icon: 'assessment', label: 'Finanças', section: DashboardSection.REPORTS },
-          { icon: 'block', label: 'Bloqueios', section: DashboardSection.BLOCKS }
-        ].map((item, i) => (
-          <button
-            key={i}
-            onClick={() => {
-              setSection(item.section);
-              setShowMobileMenu(false);
-            }}
-            className={`w-full flex items-center space-x-4 p-4 rounded-2xl transition-all relative group ${section === item.section
-              ? 'bg-primary text-white shadow-lg shadow-primary/20'
-              : 'hover:bg-white/5 text-stone-400 hover:text-white'
-              }`}
-          >
-            <span className={`material-icons ${section === item.section ? 'text-white' : 'text-stone-500 group-hover:text-primary'}`}>{item.icon}</span>
-            <span className="font-bold text-sm tracking-tight">{item.label}</span>
-            {section === item.section && (
-              <span className="absolute right-4 w-1.5 h-1.5 bg-white rounded-full"></span>
-            )}
-          </button>
-        ))}
-      </nav>
-
-      <div className="p-6 space-y-4">
-        <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-          <p className="text-[10px] text-stone-500 uppercase font-black mb-2 tracking-widest text-center">Precisa de Ajuda?</p>
-          <button
-            onClick={() => window.open(BUSINESS_CONFIG.WHATSAPP_LINK, '_blank')}
-            className="w-full bg-stone-800 hover:bg-stone-700 text-white text-[11px] font-bold py-2 rounded-xl transition-all flex items-center justify-center gap-2"
-          >
-            <span className="material-icons text-sm text-green-500">whatsapp</span>
-            Suporte: {BUSINESS_CONFIG.PHONE_CONTACT}
-          </button>
-        </div>
-        <button onClick={onLogout} className="w-full flex items-center space-x-4 p-4 hover:bg-red-500/10 text-red-400 rounded-2xl transition-all active:scale-95 group">
-          <span className="material-icons group-hover:rotate-12 transition-transform">logout</span>
-          <span className="font-bold text-sm">Sair do Painel</span>
-        </button>
-      </div>
-    </>
-  );
-
-  const renderSidebar = () => (
-    <>
-      {/* Desktop Sidebar - in document flow */}
-      <aside className="hidden lg:flex w-72 bg-stone-950 text-white flex-col border-r border-white/5 shrink-0 h-screen">
-        {sidebarContent()}
-      </aside>
-
-      {/* Mobile Sidebar - fixed overlay, outside flow */}
-      {showMobileMenu && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
-            onClick={() => setShowMobileMenu(false)}
-          />
-          <aside className="fixed inset-y-0 left-0 w-72 bg-stone-950 text-white flex flex-col z-50 lg:hidden shadow-2xl animate-slide-in">
-            {sidebarContent()}
-          </aside>
-        </>
-      )}
-    </>
-  );
+  const handleEditService = (service: Service) => {
+    setNewServiceData(service);
+    setShowServiceModal(service);
+  };
 
   const calculateDailyRevenue = () => {
     const today = getLocalTodayStr();
@@ -586,46 +506,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
         return (
           <div className="space-y-8 animate-fade-in">
             {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-              {[
-                {
-                  label: 'Agendamentos',
-                  value: appointments.filter(a => a.date === getLocalTodayStr() && a.status !== 'cancelled').length,
-                  icon: 'event',
-                  trend: 'Hoje',
-                  color: 'bg-primary'
-                },
-                {
-                  label: 'Faturamento Diário',
-                  value: `R$ ${calculateDailyRevenue().toFixed(2)}`,
-                  icon: 'payments',
-                  trend: 'Hoje',
-                  color: 'bg-accent-green'
-                },
-                {
-                  label: 'Faturamento Mensal',
-                  value: `R$ ${calculateMonthlyRevenue().toFixed(2)}`,
-                  icon: 'trending_up',
-                  trend: !monthlyGoal || monthlyGoal.target_amount === 0
-                    ? 'Sem Meta'
-                    : calculateMonthlyRevenue() >= monthlyGoal.target_amount
-                      ? '✓ Meta Batida'
-                      : `${((calculateMonthlyRevenue() / monthlyGoal.target_amount) * 100).toFixed(0)}% da Meta`,
-                  color: 'bg-blue-600'
-                }
-              ].map((stat, i) => (
-                <div key={i} className="group bg-white dark:bg-stone-900 p-4 sm:p-6 rounded-2xl border border-stone-200 dark:border-white/5 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300 min-w-0 overflow-hidden">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className={`p-3 ${stat.color} text-white rounded-xl shadow-lg ring-4 ring-offset-2 ring-transparent group-hover:ring-primary/10 transition-all`}>
-                      <span className="material-icons">{stat.icon}</span>
-                    </div>
-                    <span className="text-[10px] font-bold bg-stone-100 dark:bg-white/5 px-2 py-1 rounded text-stone-500 uppercase tracking-tighter group-hover:text-primary transition-colors">{stat.trend}</span>
-                  </div>
-                  <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">{stat.label}</p>
-                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-stone-900 dark:text-white mt-1 group-hover:scale-105 origin-left transition-transform truncate">{stat.value}</h3>
-                </div>
-              ))}
-            </div>
+            <StatsOverview
+              appointments={appointments}
+              monthlyGoal={monthlyGoal}
+              setMonthlyGoal={setMonthlyGoal}
+              setShowGoalModal={setShowGoalModal}
+              setNewGoalValue={setNewGoalValue}
+            />
 
             {/* Quick Actions Row */}
             <div className="bg-stone-900 rounded-2xl p-3 sm:p-4 flex flex-wrap gap-3 sm:gap-4 items-center justify-between shadow-2xl">
@@ -779,72 +666,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
 
       case DashboardSection.SERVICES:
         return (
-          <div className="space-y-8 animate-fade-in">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-2xl font-black text-stone-900 dark:text-white uppercase tracking-tighter">Gestão de Serviços</h3>
-                <p className="text-stone-500 text-sm mt-1">Configure os valores e o catálogo da barbearia.</p>
-              </div>
-              <button
-                onClick={() => {
-                  setNewServiceData({ name: '', price: 0, duration: 30, description: '' });
-                  setShowServiceModal({ id: '', name: '', price: 0, duration: 30, description: '', image_url: '' });
-                }}
-                className="bg-primary text-white font-black py-4 px-8 rounded-2xl flex items-center gap-2 shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all outline-none uppercase text-xs tracking-widest"
-              >
-                <span className="material-icons text-base">add</span> Novo Serviço
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {services.map((s) => (
-                <div key={s.id} className="bg-white dark:bg-stone-900 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[2.5rem] border border-stone-200 dark:border-white/5 shadow-sm hover:shadow-2xl transition-all group overflow-hidden relative border-b-4 border-b-transparent hover:border-b-primary">
-                  <div className="flex justify-between items-start mb-6 relative z-10">
-                    <div className="p-4 bg-stone-50 dark:bg-white/5 text-stone-400 group-hover:text-primary rounded-2xl transition-colors shadow-inner">
-                      <span className="material-icons text-2xl">content_cut</span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <div className="bg-primary/10 text-primary font-black px-4 py-1.5 rounded-xl text-lg tracking-tighter">
-                        R$ {Number(s.price).toFixed(2)}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteService(s.id)}
-                        className="mt-2 text-stone-300 hover:text-red-500 transition-colors"
-                        title="Excluir Serviço"
-                      >
-                        <span className="material-icons text-sm">delete_outline</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="relative z-10">
-                    <h4 className="font-black text-stone-900 dark:text-white text-xl tracking-tight mb-2 uppercase">{s.name}</h4>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed mb-8 h-12 overflow-hidden line-clamp-2 italic">"{s.description}"</p>
-
-                    <div className="flex items-center justify-between pt-6 border-t border-stone-100 dark:border-white/5">
-                      <div className="flex items-center gap-2 text-stone-400">
-                        <span className="material-icons text-xs">schedule</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest">{s.duration} MIN</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setNewServiceData(s);
-                          setShowServiceModal(s);
-                        }}
-                        className="text-primary hover:text-primary-dark transition-all flex items-center gap-1 font-black text-[10px] uppercase tracking-widest"
-                      >
-                        Editar <span className="material-icons text-sm">edit_note</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Glass Background Effect */}
-                  <div className="absolute top-0 right-0 -mr-12 -mt-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors"></div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <ServiceManager
+            services={services}
+            onAddService={() => {
+              setNewServiceData({ name: '', price: 0, duration: 30, description: '' });
+              setShowServiceModal({ id: '', name: '', price: 0, duration: 30, description: '', image_url: '' });
+            }}
+            onEditService={handleEditService}
+            onDeleteService={handleDeleteService}
+          />
         );
+
+
       case DashboardSection.AGENDA:
         return (
           <div className="space-y-8 animate-fade-in shadow-inner">
@@ -1380,7 +1213,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-stone-950 w-full">
-      {renderSidebar()}
+      <Sidebar
+        section={section}
+        setSection={setSection}
+        showMobileMenu={showMobileMenu}
+        setShowMobileMenu={setShowMobileMenu}
+        onLogout={onLogout}
+      />
       <main className="flex-1 flex flex-col h-full overflow-hidden min-w-0 w-full">
         <header className="h-16 sm:h-20 bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-white/5 px-4 sm:px-8 flex justify-between items-center z-20">
           <div className="flex items-center gap-3 sm:gap-4">
