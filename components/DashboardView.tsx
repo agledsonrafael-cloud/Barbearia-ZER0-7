@@ -1237,7 +1237,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
                 <span className="sm:hidden">Painel</span>
                 <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-widest hidden md:inline-block">Admin</span>
               </h2>
-              <p className="text-stone-400 text-xs font-medium hidden sm:block">Bem-vindo, Rodrigo Silva.</p>
+              <p className="text-stone-400 text-xs font-medium hidden sm:block">Bem-vindo, Rodrigo Silva (v2.0)</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
