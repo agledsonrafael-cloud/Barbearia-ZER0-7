@@ -109,12 +109,62 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
       })
       .subscribe();
 
+    // --- SYSTEM INTELLIGENCE ---
+    const runIntelligence = async () => {
+      await autoUpdateAppointments();
+      await autoCleanupOldRecords();
+      await generateDailySummary();
+    };
+    runIntelligence();
+
     return () => {
       supabase.removeChannel(channelNotifications);
       supabase.removeChannel(channelAppointments);
       supabase.removeChannel(channelGoals);
     };
   }, [section]);
+
+  const autoCleanupOldRecords = async () => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+    // Cleanup cancelled/completed appointments older than 30 days
+    const { error } = await supabase
+      .from('appointments')
+      .delete()
+      .lt('date', dateStr)
+      .or('status.eq.cancelled,status.eq.completed');
+
+    if (error) console.error('Intelligence: Cleanup error', error);
+  };
+
+  const generateDailySummary = async () => {
+    const todayStr = getLocalTodayStr();
+    const storageKey = `daily_summary_${todayStr}`;
+
+    if (localStorage.getItem(storageKey)) return;
+
+    const { data: todayApps } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('date', todayStr)
+      .neq('status', 'cancelled');
+
+    if (todayApps && todayApps.length > 0) {
+      const totalRevenue = todayApps.reduce((sum, a) => sum + Number(a.price), 0);
+      const newNotif: AppNotification = {
+        id: crypto.randomUUID(),
+        title: '☀️ Resumo do Dia',
+        message: `Bom dia! Hoje temos ${todayApps.length} agendamentos confirmados com uma receita prevista de R$ ${totalRevenue.toFixed(2)}.`,
+        type: 'system',
+        created_at: new Date().toISOString(),
+        read: false
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+      localStorage.setItem(storageKey, 'true');
+    }
+  };
 
   const fetchNotifications = async () => {
     const { data, error } = await supabase
@@ -468,6 +518,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
     setShowServiceModal(service);
   };
 
+  const getPeakIntensity = () => {
+    const todayStr = getLocalTodayStr();
+    const todayApps = appointments.filter(a => a.date === todayStr && a.status !== 'cancelled');
+    if (todayApps.length > 5) return 'high';
+    if (todayApps.length > 2) return 'medium';
+    return 'low';
+  };
+
 
   const renderSection = () => {
     if (loading) {
@@ -496,6 +554,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
             handleCancelAppointment={handleCancelAppointment}
             setShowPaymentModal={setShowPaymentModal}
             getLocalTodayStr={getLocalTodayStr}
+            getPeakIntensity={getPeakIntensity}
           />
         );
       case DashboardSection.ANALYTICS:
@@ -1018,6 +1077,23 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onLogout }) => {
                     className="w-full px-6 py-4 bg-stone-50 dark:bg-stone-800 border-none rounded-2xl focus:ring-4 focus:ring-primary/20 outline-none font-bold dark:text-white resize-none h-24"
                     placeholder="Fale um pouco sobre o serviço..."
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Frequência Mínima (Loyalty)</label>
+                  <div className="flex items-center gap-4 p-4 bg-stone-50 dark:bg-stone-800 rounded-2xl">
+                    <span className="material-icons text-primary">redeem</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newServiceData.min_visits || 0}
+                      onChange={(e) => setNewServiceData({ ...newServiceData, min_visits: parseInt(e.target.value) })}
+                      className="flex-1 bg-transparent border-none focus:ring-0 font-bold dark:text-white outline-none"
+                      placeholder="0 (público)"
+                    />
+                    <div className="text-[10px] font-black text-stone-400 uppercase whitespace-nowrap">Visitas</div>
+                  </div>
+                  <p className="text-[9px] text-stone-400 mt-1 ml-1">* Deixe 0 para que o serviço seja público a todos.</p>
                 </div>
               </div>
 

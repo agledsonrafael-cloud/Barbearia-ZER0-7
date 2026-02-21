@@ -92,21 +92,21 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyB
                 Próximo Horário: {nextSlot}
               </div>
             )}
-            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-extrabold text-stone-900 dark:text-white leading-tight mb-4 sm:mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-stone-900 dark:text-white leading-[1.1] mb-4 sm:mb-6 tracking-tight">
               O melhor corte e barba no coração do <span className="text-primary italic">Ceará</span>
             </h1>
             <p className="text-base sm:text-xl text-stone-600 dark:text-stone-400 mb-6 sm:mb-10 max-w-lg leading-relaxed">
               Tradição e estilo para quem busca excelência. Um ambiente rústico e acolhedor preparado para elevar sua autoestima.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start group">
               <button
                 onClick={onStartBooking}
-                className="bg-primary hover:bg-primary/90 text-white text-lg px-10 py-4 rounded-xl font-bold transition-all shadow-xl shadow-primary/30 flex items-center justify-center gap-3 group"
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white text-lg px-10 py-4 rounded-xl font-bold transition-all shadow-xl shadow-primary/30 flex items-center justify-center gap-3 group active:scale-95 touch-manipulation"
               >
                 Agende seu Horário
                 <span className="material-icons group-hover:translate-x-1 transition-transform">arrow_forward</span>
               </button>
-              <a href="#services" className="bg-white dark:bg-stone-800 border-2 border-primary/20 hover:border-primary text-stone-800 dark:text-white px-10 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
+              <a href="#services" className="w-full sm:w-auto bg-white dark:bg-stone-800 border-2 border-primary/20 hover:border-primary text-stone-800 dark:text-white px-10 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 active:scale-95 touch-manipulation">
                 Ver Serviços
               </a>
             </div>
@@ -151,17 +151,25 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyB
               {services.map((service) => (
                 <div key={service.id} className="bg-background-light dark:bg-background-dark p-8 rounded-2xl border border-primary/5 hover:shadow-xl transition-all group flex flex-col justify-between h-full">
                   <div>
-                    <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      <span className="material-icons text-3xl">{service.icon || 'content_cut'}</span>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                        <span className="material-icons text-3xl">{service.icon || 'content_cut'}</span>
+                      </div>
+                      {service.min_visits && service.min_visits > 0 && (
+                        <div className="bg-yellow-400/20 text-yellow-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 border border-yellow-400/30">
+                          <span className="material-icons text-[12px]">grade</span>
+                          {service.min_visits}+ Visitas
+                        </div>
+                      )}
                     </div>
                     <h3 className="text-2xl font-bold mb-4">{service.name}</h3>
                     <p className="text-stone-600 dark:text-stone-400 mb-6 line-clamp-2">{service.description}</p>
                   </div>
-                  <div className="flex items-center justify-between mt-auto">
+                  <div className="flex items-center justify-between mt-auto pt-4">
                     <span className="text-2xl font-bold text-accent-green">R$ {Number(service.price).toFixed(2)}</span>
                     <button
                       onClick={onStartBooking}
-                      className="bg-primary text-white px-4 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
+                      className="bg-primary text-white px-5 py-3 rounded-lg font-bold hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95 touch-manipulation"
                     >
                       Agendar
                       <span className="material-icons text-sm">event</span>

@@ -18,6 +18,7 @@ interface OverviewViewProps {
     handleCancelAppointment: (id: string) => void;
     setShowPaymentModal: (app: Appointment) => void;
     getLocalTodayStr: () => string;
+    getPeakIntensity: () => string;
 }
 
 const OverviewView: React.FC<OverviewViewProps> = ({
@@ -34,7 +35,8 @@ const OverviewView: React.FC<OverviewViewProps> = ({
     setShowBlockModal,
     handleCancelAppointment,
     setShowPaymentModal,
-    getLocalTodayStr
+    getLocalTodayStr,
+    getPeakIntensity
 }) => {
     const getLocalMonthStr = () => {
         const d = new Date();
@@ -102,9 +104,17 @@ const OverviewView: React.FC<OverviewViewProps> = ({
 
                     <div className="flex items-center justify-between px-2">
                         <h3 className="text-xl font-black text-stone-900 dark:text-white uppercase tracking-tight">Próximos Clientes</h3>
-                        <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                            {appointments.filter(a => a.status === 'confirmed' || a.status === 'pending').length} Ativos
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                                {appointments.filter(a => a.status === 'confirmed' || a.status === 'pending').length} Ativos
+                            </span>
+                            {getPeakIntensity() === 'high' && (
+                                <span className="bg-red-500/10 text-red-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase animate-pulse flex items-center gap-1">
+                                    <span className="material-icons text-[12px]">trending_up</span>
+                                    Alta Demanda
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     <div className="space-y-4">

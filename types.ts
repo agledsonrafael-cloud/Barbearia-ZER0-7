@@ -27,6 +27,7 @@ export interface Service {
   category?: string;
   popular?: boolean;
   icon?: string; // Icon might not be in DB but useful for UI
+  min_visits?: number;
 }
 
 export interface Appointment {

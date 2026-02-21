@@ -69,6 +69,17 @@ export const ServiceManager: React.FC<ServiceManagerProps> = ({
                                     <span className="material-icons text-xs">schedule</span>
                                     <span className="text-[10px] font-black uppercase tracking-widest">{s.duration} MIN</span>
                                 </div>
+                                {s.min_visits && s.min_visits > 0 ? (
+                                    <div className="flex items-center gap-1 bg-yellow-400/10 text-yellow-600 px-3 py-1 rounded-full border border-yellow-400/20">
+                                        <span className="material-icons text-xs">grade</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest">{s.min_visits} Visitas</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1 bg-stone-100 dark:bg-white/5 text-stone-400 px-3 py-1 rounded-full">
+                                        <span className="material-icons text-xs">public</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest">Público</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

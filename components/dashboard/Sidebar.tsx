@@ -103,13 +103,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {showMobileMenu && (
                 <>
                     <div
-                        className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
+                        className="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-md"
                         onClick={() => setShowMobileMenu(false)}
                     />
-                    <aside className="fixed inset-y-0 left-0 w-72 bg-stone-950 text-white flex flex-col z-50 lg:hidden shadow-2xl animate-slide-in">
+                    <aside className="fixed inset-y-0 left-0 w-80 bg-stone-950 text-white flex flex-col z-50 lg:hidden shadow-[20px_0_50px_rgba(0,0,0,0.5)] animate-slide-in border-r border-white/5">
                         {sidebarContent()}
                     </aside>
                 </>
+            )}
+
+            {/* Mobile Bottom Tab Bar (Visible only on mobile when menu is closed) */}
+            {!showMobileMenu && (
+                <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-sm">
+                    <div className="bg-stone-900/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex items-center justify-around shadow-2xl">
+                        <button onClick={() => setSection(DashboardSection.OVERVIEW)} className={`p-3 rounded-xl transition-all ${section === DashboardSection.OVERVIEW ? 'bg-primary text-white' : 'text-stone-500'}`}>
+                            <span className="material-icons">dashboard</span>
+                        </button>
+                        <button onClick={() => setSection(DashboardSection.AGENDA)} className={`p-3 rounded-xl transition-all ${section === DashboardSection.AGENDA ? 'bg-primary text-white' : 'text-stone-500'}`}>
+                            <span className="material-icons">calendar_month</span>
+                        </button>
+                        <button onClick={() => setShowMobileMenu(true)} className="p-3 bg-white/5 text-white rounded-xl">
+                            <span className="material-icons">menu</span>
+                        </button>
+                        <button onClick={() => setSection(DashboardSection.SERVICES)} className={`p-3 rounded-xl transition-all ${section === DashboardSection.SERVICES ? 'bg-primary text-white' : 'text-stone-500'}`}>
+                            <span className="material-icons">inventory_2</span>
+                        </button>
+                        <button onClick={() => setSection(DashboardSection.REPORTS)} className={`p-3 rounded-xl transition-all ${section === DashboardSection.REPORTS ? 'bg-primary text-white' : 'text-stone-500'}`}>
+                            <span className="material-icons">assessment</span>
+                        </button>
+                    </div>
+                </div>
             )}
         </>
     );

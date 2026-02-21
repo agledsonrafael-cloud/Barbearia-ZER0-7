@@ -343,26 +343,41 @@ const BookingView: React.FC<BookingViewProps> = ({ onComplete, onBack }) => {
                 <h2 className="text-2xl font-bold">Escolha o Serviço</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {services.map(service => (
-                  <div
-                    key={service.id}
-                    onClick={() => setSelectedService(service)}
-                    className={`group cursor-pointer border-2 p-4 sm:p-6 rounded-xl transition-all relative overflow-hidden active:scale-95 ${selectedService?.id === service.id ? 'border-primary bg-primary/5' : 'border-primary/10 hover:border-primary bg-white'
-                      }`}
-                  >
-                    <div className="mb-4 text-primary group-hover:scale-110 transition-transform">
-                      <span className="material-icons text-4xl">{service.icon || 'content_cut'}</span>
-                    </div>
-                    <h3 className="font-bold text-lg mb-1">{service.name}</h3>
-                    <p className="text-sm opacity-60 mb-4 h-10 line-clamp-2">{service.description}</p>
-                    <span className="text-accent-green font-bold">R$ {Number(service.price).toFixed(2)}</span>
-                    {selectedService?.id === service.id && (
-                      <div className="absolute top-2 right-2">
-                        <span className="material-icons text-primary">check_circle</span>
+                {services
+                  .filter(service => {
+                    const minVisits = service.min_visits || 0;
+                    const customerVisits = customerData?.visits_count || 0;
+                    return customerVisits >= minVisits;
+                  })
+                  .map(service => (
+                    <div
+                      key={service.id}
+                      onClick={() => setSelectedService(service)}
+                      className={`group cursor-pointer border-2 p-4 sm:p-6 rounded-xl transition-all relative overflow-hidden active:scale-95 ${selectedService?.id === service.id ? 'border-primary bg-primary/5' : 'border-primary/10 hover:border-primary bg-white'
+                        }`}
+                    >
+                      <div className="mb-4 text-primary group-hover:scale-110 transition-transform flex justify-between items-start">
+                        <span className="material-icons text-4xl">{service.icon || 'content_cut'}</span>
+                        {service.min_visits && service.min_visits > 0 && (
+                          <div className="bg-yellow-400/20 text-yellow-600 px-2 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1">
+                            <span className="material-icons text-[10px]">grade</span>
+                            Loyalty ({service.min_visits}+)
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <h3 className="font-bold text-lg mb-1">{service.name}</h3>
+                      <p className="text-sm opacity-60 mb-4 h-10 line-clamp-2">{service.description}</p>
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-accent-green font-bold">R$ {Number(service.price).toFixed(2)}</span>
+                        <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{service.duration} MIN</span>
+                      </div>
+                      {selectedService?.id === service.id && (
+                        <div className="absolute top-2 right-2">
+                          <span className="material-icons text-primary">check_circle</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
             </section>
 
