@@ -83,7 +83,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyB
           </div>
 
           {/* Secondary row: Navigation (Mobile specific) */}
-          <nav className="flex md:hidden flex-row flex-nowrap items-center justify-center gap-6 pb-4 text-[11px] font-bold text-stone-600 dark:text-stone-400 overflow-x-auto no-scrollbar border-t border-primary/5 pt-3">
+          <nav className="flex md:hidden flex-row flex-nowrap items-center justify-center gap-6 pb-4 text-[11px] font-bold text-stone-600 dark:text-stone-400 nav-scrollable no-scrollbar border-t border-primary/5 pt-3">
             <a className="hover:text-primary transition-colors whitespace-nowrap" href="#services">Serviços</a>
             <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onMyBookings}>Meus Agendamentos</button>
             <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onAdminLogin}>Acesso Barbeiro</button>
