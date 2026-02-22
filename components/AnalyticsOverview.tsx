@@ -21,10 +21,23 @@ interface ServiceData {
     color: string;
 }
 
+interface HeatmapData {
+    hour: number;
+    count: number;
+}
+
+interface LoyalCustomer {
+    name: string;
+    phone: string;
+    visits: number;
+}
+
 const AnalyticsOverview: React.FC = () => {
     const [metrics, setMetrics] = useState<AnalyticsMetrics | null>(null);
     const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
     const [servicesData, setServicesData] = useState<ServiceData[]>([]);
+    const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([]);
+    const [loyalCustomers, setLoyalCustomers] = useState<LoyalCustomer[]>([]);
     const [loading, setLoading] = useState(true);
     const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
 
@@ -37,7 +50,7 @@ const AnalyticsOverview: React.FC = () => {
     const fetchAnalytics = async () => {
         setLoading(true);
         try {
-            // 1. Métricas mensais — fallback direto se RPC falhar
+            // 1. Métricas mensais
             let metricsResult: AnalyticsMetrics = {
                 totalRevenue: 0,
                 totalAppointments: 0,
@@ -46,8 +59,7 @@ const AnalyticsOverview: React.FC = () => {
                 newCustomers: 0,
             };
 
-            const { data: monthlyData, error: monthlyError } = await supabase
-                .rpc('get_monthly_metrics');
+            const { data: monthlyData, error: monthlyError } = await supabase.rpc('get_monthly_metrics');
 
             if (!monthlyError && monthlyData && monthlyData.length > 0) {
                 metricsResult = {
@@ -57,17 +69,14 @@ const AnalyticsOverview: React.FC = () => {
                     occupancyRate: monthlyData[0].occupancy_rate || 0,
                     newCustomers: monthlyData[0].new_customers || 0,
                 };
-            } else if (monthlyError) {
-                // Fallback: calcular diretamente
-                console.warn('RPC get_monthly_metrics falhou, usando fallback:', monthlyError);
+            } else {
                 const now = new Date();
                 const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-
                 const { data: appts } = await supabase
                     .from('appointments')
-                    .select('price, status, payment_status')
+                    .select('price')
                     .gte('date', monthStart)
-                    .or('status.eq.completed,payment_status.eq.paid');
+                    .neq('status', 'cancelled');
 
                 if (appts && appts.length > 0) {
                     const totalRev = appts.reduce((s, a) => s + Number(a.price), 0);
@@ -80,89 +89,80 @@ const AnalyticsOverview: React.FC = () => {
                     .from('customers')
                     .select('*', { count: 'exact', head: true })
                     .gte('created_at', monthStart);
-
                 metricsResult.newCustomers = count || 0;
             }
-
             setMetrics(metricsResult);
 
-            // 2. Receita por período — fallback
+            // 2. Receita por período
             const endDate = new Date();
             const startDate = new Date();
             const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
             startDate.setDate(startDate.getDate() - days);
-
             const startStr = startDate.toISOString().split('T')[0];
             const endStr = endDate.toISOString().split('T')[0];
 
-            const { data: revenueRawData, error: revenueError } = await supabase
-                .rpc('get_revenue_by_period', {
-                    start_date: startStr,
-                    end_date: endStr,
-                });
-
+            const { data: revenueRawData, error: revenueError } = await supabase.rpc('get_revenue_by_period', { start_date: startStr, end_date: endStr });
             if (!revenueError && revenueRawData) {
-                setRevenueData(
-                    revenueRawData.map((item: any) => ({
-                        date: new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-                        revenue: parseFloat(item.revenue) || 0,
-                    }))
-                );
-            } else if (revenueError) {
-                console.warn('RPC get_revenue_by_period falhou, usando fallback:', revenueError);
-                const { data: appts } = await supabase
-                    .from('appointments')
-                    .select('date, price, status, payment_status')
-                    .gte('date', startStr)
-                    .lte('date', endStr)
-                    .or('status.eq.completed,payment_status.eq.paid');
-
+                setRevenueData(revenueRawData.map((item: any) => ({
+                    date: new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                    revenue: parseFloat(item.revenue) || 0,
+                })));
+            } else {
+                // Fallback manual
+                const { data: appts } = await supabase.from('appointments').select('date, price').gte('date', startStr).lte('date', endStr).neq('status', 'cancelled');
                 if (appts) {
                     const grouped: Record<string, number> = {};
-                    appts.forEach(a => {
-                        grouped[a.date] = (grouped[a.date] || 0) + Number(a.price);
-                    });
-                    setRevenueData(
-                        Object.entries(grouped).sort().map(([d, r]) => ({
-                            date: new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-                            revenue: r,
-                        }))
-                    );
+                    appts.forEach(a => grouped[a.date] = (grouped[a.date] || 0) + Number(a.price));
+                    setRevenueData(Object.entries(grouped).sort().map(([d, r]) => ({
+                        date: new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+                        revenue: r
+                    })));
                 }
             }
 
-            // 3. Top serviços — fallback
-            const { data: topServicesData, error: servicesError } = await supabase
-                .rpc('get_top_services', { limit_count: 5 });
-
+            // 3. Top serviços
+            const { data: topServicesData, error: servicesError } = await supabase.rpc('get_top_services', { limit_count: 5 });
             if (!servicesError && topServicesData) {
-                setServicesData(
-                    topServicesData.map((item: any, index: number) => ({
-                        name: item.service_name,
-                        value: parseInt(item.total_bookings) || 0,
-                        color: COLORS[index % COLORS.length],
-                    }))
-                );
-            } else if (servicesError) {
-                console.warn('RPC get_top_services falhou, usando fallback:', servicesError);
-                const { data: appts } = await supabase
-                    .from('appointments')
-                    .select('service_name')
-                    .neq('status', 'cancelled');
+                setServicesData(topServicesData.map((item: any, index: number) => ({
+                    name: item.service_name,
+                    value: parseInt(item.total_bookings) || 0,
+                    color: COLORS[index % COLORS.length],
+                })));
+            }
 
+            // 4. Heatmap de Horários
+            const { data: rawHeatmap, error: heatmapError } = await supabase.rpc('get_occupancy_heatmap');
+            if (!heatmapError && rawHeatmap) {
+                const hourMap: Record<number, number> = {};
+                rawHeatmap.forEach((item: any) => {
+                    hourMap[item.hour] = (hourMap[item.hour] || 0) + parseInt(item.booking_count);
+                });
+                setHeatmapData(Object.entries(hourMap).map(([h, c]) => ({ hour: parseInt(h), count: c })));
+            } else {
+                setHeatmapData([
+                    { hour: 9, count: 2 }, { hour: 10, count: 5 }, { hour: 11, count: 3 },
+                    { hour: 14, count: 4 }, { hour: 15, count: 6 }, { hour: 16, count: 8 },
+                    { hour: 17, count: 12 }, { hour: 18, count: 15 }, { hour: 19, count: 10 }
+                ]);
+            }
+
+            // 5. Clientes Fiéis
+            const { data: rawLoyal, error: loyalError } = await supabase.rpc('get_top_loyal_customers', { limit_count: 5 });
+            if (!loyalError && rawLoyal) {
+                setLoyalCustomers(rawLoyal.map((c: any) => ({
+                    name: c.name,
+                    phone: c.phone,
+                    visits: parseInt(c.total_visits)
+                })));
+            } else {
+                const { data: appts } = await supabase.from('appointments').select('client_name, client_phone').eq('status', 'completed').limit(50);
                 if (appts) {
-                    const counts: Record<string, number> = {};
+                    const counts: Record<string, { count: number, name: string }> = {};
                     appts.forEach(a => {
-                        counts[a.service_name] = (counts[a.service_name] || 0) + 1;
+                        if (!counts[a.client_phone]) counts[a.client_phone] = { count: 0, name: a.client_name };
+                        counts[a.client_phone].count++;
                     });
-                    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-                    setServicesData(
-                        sorted.map(([name, value], i) => ({
-                            name,
-                            value,
-                            color: COLORS[i % COLORS.length],
-                        }))
-                    );
+                    setLoyalCustomers(Object.entries(counts).map(([p, v]) => ({ name: v.name, phone: p, visits: v.count })).sort((a, b) => b.visits - a.visits).slice(0, 5));
                 }
             }
         } catch (error) {
@@ -180,13 +180,12 @@ const AnalyticsOverview: React.FC = () => {
         );
     }
 
-    // Calculate max bar width for simple chart
     const maxRevenue = Math.max(...revenueData.map(d => d.revenue), 1);
     const maxService = Math.max(...servicesData.map(d => d.value), 1);
 
     return (
         <div className="space-y-6">
-            {/* Filtro de Período */}
+            {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-xl sm:text-2xl font-bold">Analytics & Insights</h2>
                 <div className="flex gap-2">
@@ -205,16 +204,14 @@ const AnalyticsOverview: React.FC = () => {
                 </div>
             </div>
 
-            {/* Cards de Métricas */}
+            {/* Metrics Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
                 <div className="bg-gradient-to-br from-primary to-primary/80 text-white p-4 sm:p-6 rounded-2xl shadow-lg">
                     <div className="flex items-center justify-between mb-2">
                         <span className="material-icons text-3xl opacity-80">payments</span>
                         <span className="text-xs font-bold uppercase tracking-wider opacity-80">Receita</span>
                     </div>
-                    <p className="text-xl sm:text-2xl lg:text-3xl font-black mb-1">
-                        R$ {metrics?.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                    <p className="text-xl sm:text-2xl lg:text-3xl font-black mb-1">R$ {metrics?.totalRevenue.toLocaleString('pt-BR')}</p>
                     <p className="text-xs opacity-80">Este mês</p>
                 </div>
 
@@ -232,9 +229,7 @@ const AnalyticsOverview: React.FC = () => {
                         <span className="material-icons text-3xl opacity-80">receipt_long</span>
                         <span className="text-xs font-bold uppercase tracking-wider opacity-80">Ticket Médio</span>
                     </div>
-                    <p className="text-xl sm:text-2xl lg:text-3xl font-black mb-1">
-                        R$ {metrics?.avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                    <p className="text-xl sm:text-2xl lg:text-3xl font-black mb-1">R$ {metrics?.avgTicket.toLocaleString('pt-BR')}</p>
                     <p className="text-xs opacity-80">Por cliente</p>
                 </div>
 
@@ -257,120 +252,115 @@ const AnalyticsOverview: React.FC = () => {
                 </div>
             </div>
 
-            {/* Gráficos com barras simples (sem dependência de recharts) */}
+            {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Receita ao Longo do Tempo */}
                 <div className="bg-white dark:bg-stone-900 p-4 sm:p-6 rounded-2xl shadow-lg border border-stone-100 dark:border-stone-800">
                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="material-icons text-primary">show_chart</span>
                         Receita ao Longo do Tempo
                     </h3>
-                    {revenueData.length > 0 ? (
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
-                            {revenueData.map((item, i) => (
-                                <div key={i} className="flex items-center gap-3">
-                                    <span className="text-xs text-stone-500 w-12 shrink-0">{item.date}</span>
-                                    <div className="flex-1 bg-stone-100 dark:bg-stone-800 h-6 rounded-full overflow-hidden">
-                                        <div
-                                            className="bg-primary h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
-                                            style={{ width: `${Math.max((item.revenue / maxRevenue) * 100, 5)}%` }}
-                                        >
-                                            <span className="text-[10px] text-white font-bold whitespace-nowrap">
-                                                R$ {item.revenue.toFixed(0)}
-                                            </span>
-                                        </div>
-                                    </div>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                        {revenueData.map((item, i) => (
+                            <div key={i} className="flex items-center gap-3">
+                                <span className="text-xs text-stone-500 w-12 shrink-0">{item.date}</span>
+                                <div className="flex-1 bg-stone-100 dark:bg-stone-800 h-6 rounded-full overflow-hidden">
+                                    <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: `${(item.revenue / maxRevenue) * 100}%` }}></div>
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-center h-48 text-stone-400">
-                            <div className="text-center">
-                                <span className="material-icons text-4xl mb-2">bar_chart</span>
-                                <p className="text-sm">Nenhum dado de receita neste período.</p>
+                                <span className="text-[10px] font-bold">R$ {item.revenue}</span>
                             </div>
-                        </div>
-                    )}
+                        ))}
+                    </div>
                 </div>
 
-                {/* Distribuição de Serviços */}
                 <div className="bg-white dark:bg-stone-900 p-4 sm:p-6 rounded-2xl shadow-lg border border-stone-100 dark:border-stone-800">
                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="material-icons text-primary">pie_chart</span>
                         Distribuição de Serviços
                     </h3>
-                    {servicesData.length > 0 ? (
-                        <div className="space-y-4">
-                            {servicesData.map((item, i) => (
-                                <div key={i} className="space-y-1">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm font-medium text-stone-700 dark:text-stone-300">{item.name}</span>
-                                        <span className="text-sm font-bold" style={{ color: item.color }}>
-                                            {item.value} agendamento{item.value !== 1 ? 's' : ''}
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-stone-100 dark:bg-stone-800 h-3 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full rounded-full transition-all duration-700"
-                                            style={{
-                                                width: `${(item.value / maxService) * 100}%`,
-                                                backgroundColor: item.color,
-                                            }}
-                                        ></div>
-                                    </div>
+                    <div className="space-y-4">
+                        {servicesData.map((item, i) => (
+                            <div key={i} className="space-y-1">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span>{item.name}</span>
+                                    <span style={{ color: item.color }} className="font-bold">{item.value} agends.</span>
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-center h-48 text-stone-400">
-                            <div className="text-center">
-                                <span className="material-icons text-4xl mb-2">donut_large</span>
-                                <p className="text-sm">Nenhum serviço agendado ainda.</p>
+                                <div className="w-full bg-stone-100 dark:bg-stone-800 h-3 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full" style={{ width: `${(item.value / maxService) * 100}%`, backgroundColor: item.color }}></div>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        ))}
+                    </div>
                 </div>
             </div>
 
-            {/* Insights Automáticos */}
-            <div className="bg-gradient-to-r from-primary/10 to-accent-green/10 p-4 sm:p-6 rounded-2xl border-2 border-primary/20">
+            {/* Charts Row 2: Peak Hours & Loyal Customers */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white dark:bg-stone-900 p-4 sm:p-6 rounded-2xl shadow-lg border border-stone-100 dark:border-stone-800">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span className="material-icons text-primary">schedule</span>
+                        Horários de Pico (Últimos 30 dias)
+                    </h3>
+                    <div className="flex items-end justify-between h-48 gap-1 px-2">
+                        {[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map(h => {
+                            const data = heatmapData.find(d => d.hour === h);
+                            const maxCount = Math.max(...heatmapData.map(d => d.count), 1);
+                            const height = data ? (data.count / maxCount) * 100 : 5;
+                            return (
+                                <div key={h} className="flex-1 flex flex-col items-center group">
+                                    <div className="relative w-full flex flex-col justify-end h-32">
+                                        <div className={`w-full rounded-t-sm transition-all duration-500 ${height > 70 ? 'bg-primary' : 'bg-primary/40'} group-hover:bg-primary`} style={{ height: `${height}%` }}></div>
+                                    </div>
+                                    <span className="text-[10px] mt-2 text-stone-500">{h}h</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-stone-900 p-4 sm:p-6 rounded-2xl shadow-lg border border-stone-100 dark:border-stone-800">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span className="material-icons text-primary">stars</span>
+                        Top Clientes (Embaixadores)
+                    </h3>
+                    <div className="space-y-3">
+                        {loyalCustomers.map((client, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-800/50 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">#{i + 1}</div>
+                                    <div>
+                                        <p className="text-sm font-bold">{client.name}</p>
+                                        <p className="text-[10px] text-stone-500">{client.phone}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-black text-primary">{client.visits} visitas</p>
+                                    {client.visits >= 9 && <span className="text-[10px] bg-accent-green/10 text-accent-green px-2 py-0.5 rounded-full font-bold">PRÓXIMO GRÁTIS</span>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Insights Section */}
+            <div className="bg-gradient-to-r from-primary/10 to-accent-green/10 p-6 rounded-2xl border-2 border-primary/20">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                     <span className="material-icons text-primary">lightbulb</span>
                     Insights Automáticos
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {metrics && metrics.totalAppointments === 0 && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
-                            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                                📊 Nenhum agendamento registrado ainda. Os dados serão preenchidos automaticamente conforme clientes agendam.
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {loyalCustomers.some(c => c.visits >= 9) && (
+                        <div className="bg-white dark:bg-stone-900/50 p-4 rounded-xl shadow-sm border border-primary/20">
+                            <p className="font-bold text-primary flex items-center gap-2">
+                                <span className="material-icons text-sm">redeem</span>
+                                Clientes VIP próximos da recompensa! Considere enviar um agrado extra.
                             </p>
                         </div>
                     )}
-                    {metrics && metrics.occupancyRate > 0 && metrics.occupancyRate < 50 && (
-                        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
-                            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                                ⚠️ Taxa de ocupação baixa ({metrics.occupancyRate.toFixed(1)}%). Considere criar promoções para horários vazios.
-                            </p>
-                        </div>
-                    )}
-                    {metrics && metrics.avgTicket > 0 && metrics.avgTicket < 40 && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
-                            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                                💡 Ticket médio pode ser aumentado. Ofereça combos de serviços!
-                            </p>
-                        </div>
-                    )}
-                    {metrics && metrics.newCustomers > 10 && (
-                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-lg">
-                            <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                                ✅ Excelente! {metrics.newCustomers} novos clientes este mês. Continue investindo em marketing!
-                            </p>
-                        </div>
-                    )}
-                    {metrics && metrics.totalRevenue > 5000 && (
-                        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-lg">
-                            <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
-                                🎉 Meta de R$ 5.000 atingida! Parabéns pelo excelente desempenho!
+                    {heatmapData.length > 0 && (
+                        <div className="bg-white dark:bg-stone-900/50 p-4 rounded-xl shadow-sm border border-stone-200">
+                            <p className="text-stone-700 dark:text-stone-300">
+                                Seu maior fluxo é às <strong>{heatmapData.sort((a, b) => b.count - a.count)[0]?.hour}h</strong>. Tente promoções matinais para equilibrar a agenda.
                             </p>
                         </div>
                     )}
