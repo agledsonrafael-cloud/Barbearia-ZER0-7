@@ -59,22 +59,35 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyB
     <div className="rustic-texture min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md border-b border-primary/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => window.location.reload()}>
-            <span className="text-lg sm:text-2xl font-extrabold text-primary tracking-tight whitespace-nowrap">Barbearia <span className="text-accent-green">ZERO 7</span></span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Main row: Logo, Desktop Nav, and CTA */}
+          <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
+            <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => window.location.reload()}>
+              <span className="text-xl sm:text-2xl font-extrabold text-primary tracking-tight whitespace-nowrap">Barbearia <span className="text-accent-green">ZERO 7</span></span>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex flex-row flex-nowrap items-center gap-6 lg:gap-8 text-sm font-bold text-stone-600 dark:text-stone-400">
+              <a className="hover:text-primary transition-colors whitespace-nowrap" href="#services">Serviços</a>
+              <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onMyBookings}>Meus Agendamentos</button>
+              <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onAdminLogin}>Acesso Barbeiro</button>
+            </nav>
+
+            <button
+              onClick={onStartBooking}
+              className="flex bg-primary hover:bg-primary/90 text-white px-4 sm:px-6 py-2.5 rounded-lg font-bold transition-all shadow-md shadow-primary/20 items-center gap-2 text-xs sm:text-base flex-shrink-0 whitespace-nowrap"
+            >
+              <span className="material-icons text-sm sm:text-base">event</span>
+              Agendar Agora
+            </button>
           </div>
-          <nav className="flex flex-row flex-nowrap items-center gap-4 sm:gap-6 lg:gap-8 text-[12px] sm:text-sm font-semibold text-stone-600 dark:text-stone-400 flex-shrink-0 overflow-x-auto no-scrollbar">
+
+          {/* Secondary row: Navigation (Mobile specific) */}
+          <nav className="flex md:hidden flex-row flex-nowrap items-center justify-center gap-6 pb-4 text-[11px] font-bold text-stone-600 dark:text-stone-400 overflow-x-auto no-scrollbar border-t border-primary/5 pt-3">
             <a className="hover:text-primary transition-colors whitespace-nowrap" href="#services">Serviços</a>
             <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onMyBookings}>Meus Agendamentos</button>
-            <button className="hover:text-primary transition-colors font-bold whitespace-nowrap" onClick={onAdminLogin}>Acesso Barbeiro</button>
+            <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onAdminLogin}>Acesso Barbeiro</button>
           </nav>
-          <button
-            onClick={onStartBooking}
-            className="flex bg-primary hover:bg-primary/90 text-white px-3 sm:px-6 py-2 rounded-lg font-bold transition-all shadow-md shadow-primary/20 items-center gap-2 text-xs sm:text-base flex-shrink-0 whitespace-nowrap"
-          >
-            <span className="material-icons text-base">event</span>
-            Agendar Agora
-          </button>
         </div>
       </header>
 
