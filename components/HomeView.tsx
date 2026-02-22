@@ -63,14 +63,14 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyB
           <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => window.location.reload()}>
             <span className="text-lg sm:text-2xl font-extrabold text-primary tracking-tight whitespace-nowrap">Barbearia <span className="text-accent-green">ZERO 7</span></span>
           </div>
-          <nav className="hidden md:flex md:flex-row md:flex-nowrap items-center gap-6 lg:gap-8 text-sm font-semibold text-stone-600 dark:text-stone-400 flex-shrink-0">
+          <nav className="flex flex-row flex-nowrap items-center gap-4 sm:gap-6 lg:gap-8 text-[12px] sm:text-sm font-semibold text-stone-600 dark:text-stone-400 flex-shrink-0 overflow-x-auto no-scrollbar">
             <a className="hover:text-primary transition-colors whitespace-nowrap" href="#services">Serviços</a>
             <button className="hover:text-primary transition-colors whitespace-nowrap" onClick={onMyBookings}>Meus Agendamentos</button>
             <button className="hover:text-primary transition-colors font-bold whitespace-nowrap" onClick={onAdminLogin}>Acesso Barbeiro</button>
           </nav>
           <button
             onClick={onStartBooking}
-            className="hidden sm:flex bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg font-bold transition-all shadow-md shadow-primary/20 items-center gap-2 text-base flex-shrink-0 whitespace-nowrap"
+            className="flex bg-primary hover:bg-primary/90 text-white px-3 sm:px-6 py-2 rounded-lg font-bold transition-all shadow-md shadow-primary/20 items-center gap-2 text-xs sm:text-base flex-shrink-0 whitespace-nowrap"
           >
             <span className="material-icons text-base">event</span>
             Agendar Agora
@@ -155,7 +155,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onStartBooking, onAdminLogin, onMyB
                       <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                         <span className="material-icons text-3xl">{service.icon || 'content_cut'}</span>
                       </div>
-                      {service.min_visits && service.min_visits > 0 && (
+                      {(service.min_visits ?? 0) > 0 && (
                         <div className="bg-yellow-400/20 text-yellow-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 border border-yellow-400/30">
                           <span className="material-icons text-[12px]">grade</span>
                           {service.min_visits}+ Visitas
